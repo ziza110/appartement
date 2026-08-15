@@ -1,4 +1,4 @@
-—// Service worker: cache the app shell (HTML/CSS/JS/icons) for fast loading and
+// Service worker: cache the app shell (HTML/CSS/JS/icons) for fast loading and
 // basic offline access. API calls (/api/...) always go to the network since
 // reservation data is shared live between devices.
 var CACHE_NAME = "hotel-resa-shell-v1";
