@@ -382,6 +382,21 @@
     margin-bottom:4px;
   }
   .form-grid input, .form-grid select, .form-grid textarea{ width:100%; }
+  .avail-list{ display:flex; flex-direction:column; gap:5px; }
+  .avail-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    padding:7px 12px;
+    border-radius:7px;
+    font-size:12.5px;
+    font-weight:600;
+  }
+  .avail-item.ok{ background:var(--green-bg); color:var(--green-text); cursor:pointer; }
+  .avail-item.ok:hover{ filter:brightness(0.96); }
+  .avail-item.busy{ background:var(--red-bg); color:var(--red-text); }
+  .avail-item.current{ box-shadow:inset 0 0 0 2px var(--blue); }
   .modal-actions{
     display:flex;
     justify-content:space-between;
@@ -638,6 +653,10 @@
           <input type="date" id="f_checkout" required>
           <div class="hint">La nuit du départ est libre.</div>
         </div>
+        <div class="full" id="availabilityBox" style="display:none;">
+          <label>Disponibilité pour ces dates <span style="font-weight:400;color:#8a97a3;">(clique sur un appartement disponible pour le sélectionner)</span></label>
+          <div class="avail-list" id="availabilityList"></div>
+        </div>
         <div>
           <label>Prix / nuit (€)</label>
           <input type="number" id="f_price" min="0" step="1" value="0">
@@ -885,6 +904,33 @@
       return rangesOverlap(checkin, checkout, r.checkin, r.checkout);
     });
   }
+  function availabilityForDates(checkin, checkout, excludeId){
+    return APARTMENTS.map(function(apt){
+      var conflict = findConflict(apt, checkin, checkout, excludeId);
+      return { apartment: apt, available: !conflict, conflict: conflict };
+    });
+  }
+  function renderAvailabilityBox(){
+    var box = document.getElementById("availabilityBox");
+    var list = document.getElementById("availabilityList");
+    var checkin = document.getElementById("f_checkin").value;
+    var checkout = document.getElementById("f_checkout").value;
+    if(!checkin || !checkout || checkout <= checkin){
+      box.style.display = "none";
+      return;
+    }
+    var current = document.getElementById("f_apartment").value;
+    var avail = availabilityForDates(checkin, checkout, state.editingId);
+    list.innerHTML = avail.map(function(a){
+      var cls = "avail-item " + (a.available ? "ok" : "busy") + (a.apartment===current ? " current" : "");
+      var label = a.available
+        ? "✓ Disponible"
+        : "✗ Occupé — "+escapeHtml(a.conflict.client)+" jusqu'au "+fmtDate(a.conflict.checkout);
+      return "<div class='"+cls+"' data-apt=\""+a.apartment.replace(/"/g,'&quot;')+"\" data-available='"+(a.available?1:0)+"'>"+
+        "<span>"+a.apartment+"</span><span>"+label+"</span></div>";
+    }).join("");
+    box.style.display = "block";
+  }
 
   // ---------- rendering: dashboard ----------
   function renderDashboard(){
@@ -1045,11 +1091,13 @@
     document.getElementById("f_checkedOut").checked = !!(reservation && reservation.checkedOut);
     document.getElementById("f_notes").value = reservation ? reservation.notes : "";
     document.getElementById("modalOverlay").classList.add("show");
+    renderAvailabilityBox();
   }
   function closeModal(){
     document.getElementById("modalOverlay").classList.remove("show");
     document.getElementById("resForm").reset();
     document.getElementById("modalResNumber").style.display = "none";
+    document.getElementById("availabilityBox").style.display = "none";
     state.editingId = null;
   }
   function openModalPrefill(apt, dateStr){
@@ -1057,6 +1105,7 @@
     document.getElementById("f_apartment").value = apt;
     document.getElementById("f_checkin").value = dateStr;
     document.getElementById("f_checkout").value = toISO(new Date(parseISO(dateStr).getTime()+MS_DAY));
+    renderAvailabilityBox();
   }
 
   function setSubmitting(isSubmitting){
@@ -1305,6 +1354,16 @@
     });
     document.getElementById("resForm").addEventListener("submit", handleFormSubmit);
     document.getElementById("btnDeleteRes").addEventListener("click", handleDelete);
+
+    document.getElementById("f_checkin").addEventListener("change", renderAvailabilityBox);
+    document.getElementById("f_checkout").addEventListener("change", renderAvailabilityBox);
+    document.getElementById("f_apartment").addEventListener("change", renderAvailabilityBox);
+    document.getElementById("availabilityList").addEventListener("click", function(e){
+      var item = e.target.closest(".avail-item");
+      if(!item || item.dataset.available !== "1") return;
+      document.getElementById("f_apartment").value = item.dataset.apt;
+      renderAvailabilityBox();
+    });
 
     document.getElementById("resTableBody").addEventListener("click", function(e){
       var tr = e.target.closest("tr");
