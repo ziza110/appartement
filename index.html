@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Réservation Hôtel — 5 Appartements</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#1F4E78">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hôtel Résa">
+
+<style>
+  :root{
+    --blue-dark:#1F4E78;
+    --blue:#2E75B6;
+    --blue-light:#D9E1F2;
+    --green-bg:#C6EFCE;
+    --green-text:#006100;
+    --red-bg:#FFC7CE;
+    --red-text:#9C0006;
+    --orange-bg:#FFEB9C;
+    --orange-text:#9C6500;
+    --gray-bg:#F4F6F8;
+    --border:#DCE3EA;
+    --text:#1E2A33;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:var(--gray-bg);
+    color:var(--text);
+  }
+  header{
+    background:linear-gradient(135deg, var(--blue-dark), var(--blue));
+    color:#fff;
+    padding:20px 28px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  header h1{
+    margin:0;
+    font-size:22px;
+    font-weight:700;
+  }
+  header p{
+    margin:2px 0 0;
+    font-size:13px;
+    opacity:0.85;
+  }
+  #connStatus{
+    font-size:11px;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 10px;
+    border-radius:20px;
+    background:rgba(255,255,255,0.15);
+  }
+  #connStatus i{ width:8px; height:8px; border-radius:50%; background:#8affa0; display:inline-block; }
+  #connStatus.offline i{ background:#ff8a8a; }
+  nav.tabs{
+    display:flex;
+    gap:6px;
+    background:#fff;
+    padding:10px 28px;
+    border-bottom:1px solid var(--border);
+    position:sticky;
+    top:0;
+    z-index:50;
+    flex-wrap:wrap;
+  }
+  nav.tabs button{
+    border:none;
+    background:transparent;
+    padding:10px 18px;
+    font-size:14px;
+    font-weight:600;
+    color:#5b6b78;
+    cursor:pointer;
+    border-radius:8px;
+    transition:0.15s;
+  }
+  nav.tabs button:hover{ background:var(--gray-bg); }
+  nav.tabs button.active{
+    background:var(--blue-light);
+    color:var(--blue-dark);
+  }
+  main{
+    padding:24px 28px 60px;
+    max-width:1300px;
+    margin:0 auto;
+  }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  /* Cards / dashboard */
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
+    gap:16px;
+    margin-bottom:24px;
+  }
+  .card{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    box-shadow:0 1px 3px rgba(20,40,60,0.05);
+  }
+  .card h3{
+    margin:0 0 10px;
+    font-size:14px;
+    color:var(--blue-dark);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .card .stat-row{
+    display:flex;
+    justify-content:space-between;
+    font-size:13px;
+    padding:4px 0;
+    border-bottom:1px dashed #eef1f4;
+  }
+  .card .stat-row:last-child{ border-bottom:none; }
+  .card .stat-row span:last-child{ font-weight:700; }
+  .occ-bar{
+    height:8px;
+    border-radius:4px;
+    background:#eef1f4;
+    margin-top:8px;
+    overflow:hidden;
+  }
+  .occ-bar-fill{
+    height:100%;
+    background:var(--blue);
+    border-radius:4px;
+  }
+  .totals{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px 20px;
+    display:flex;
+    gap:32px;
+    flex-wrap:wrap;
+    margin-bottom:24px;
+  }
+  .totals div{ font-size:13px; }
+  .totals strong{ display:block; font-size:20px; color:var(--blue-dark); }
+
+  section.block{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px 20px;
+    margin-bottom:22px;
+  }
+  section.block h2{
+    font-size:15px;
+    margin:0 0 12px;
+    color:var(--blue-dark);
+  }
+  .upcoming-list{ list-style:none; margin:0; padding:0; }
+  .upcoming-list li{
+    display:flex;
+    justify-content:space-between;
+    padding:8px 0;
+    border-bottom:1px solid #f0f2f5;
+    font-size:13px;
+  }
+  .upcoming-list li:last-child{ border-bottom:none; }
+  .tag{
+    display:inline-block;
+    padding:2px 9px;
+    border-radius:20px;
+    font-size:11px;
+    font-weight:700;
+  }
+  .tag.Confirmée{ background:var(--green-bg); color:var(--green-text); }
+  .tag.En.attente, .tag[data-status="En attente"]{ background:var(--orange-bg); color:var(--orange-text); }
+  .tag[data-status="Annulée"]{ background:var(--red-bg); color:var(--red-text); }
+
+  /* Reservations table */
+  .toolbar{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-bottom:16px;
+    justify-content:space-between;
+  }
+  .filters{ display:flex; gap:8px; flex-wrap:wrap; }
+  select, input[type=text], input[type=search], input[type=date], input[type=number], input[type=tel], input[type=email], textarea{
+    font-family:inherit;
+    font-size:13px;
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:7px;
+    background:#fff;
+    color:var(--text);
+  }
+  .btn{
+    border:none;
+    padding:9px 16px;
+    border-radius:7px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    transition:0.15s;
+  }
+  .btn-primary{ background:var(--blue); color:#fff; }
+  .btn-primary:hover{ background:var(--blue-dark); }
+  .btn-ghost{ background:#eef1f4; color:var(--text); }
+  .btn-ghost:hover{ background:#e2e7ec; }
+  .btn-danger{ background:var(--red-bg); color:var(--red-text); }
+  .btn-danger:hover{ background:#ffb3ba; }
+  .btn-sm{ padding:5px 10px; font-size:12px; }
+  .btn[disabled]{ opacity:0.6; cursor:not-allowed; }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  thead th{
+    background:var(--blue);
+    color:#fff;
+    text-align:left;
+    padding:10px 10px;
+    position:sticky;
+    top:0;
+  }
+  tbody td{
+    padding:9px 10px;
+    border-bottom:1px solid #f0f2f5;
+  }
+  tbody tr:hover{ background:#f8fafc; }
+  .table-wrap{ overflow-x:auto; border-radius:8px; border:1px solid var(--border); }
+  .empty-msg{ text-align:center; color:#8a97a3; padding:30px; font-size:13px; }
+
+  /* Calendar */
+  .cal-controls{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .cal-controls .month-label{
+    font-weight:700;
+    font-size:15px;
+    color:var(--blue-dark);
+    min-width:160px;
+    text-align:center;
+    text-transform:capitalize;
+  }
+  .legend{ display:flex; gap:14px; font-size:12px; margin-left:auto; flex-wrap:wrap;}
+  .legend span{ display:flex; align-items:center; gap:6px; }
+  .legend i{ width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .cal-table-wrap{ overflow-x:auto; }
+  table.calendar{ border-collapse:collapse; font-size:11px; }
+  table.calendar th, table.calendar td{
+    border:1px solid #eef1f4;
+    text-align:center;
+    min-width:30px;
+    height:30px;
+    padding:0;
+  }
+  table.calendar th.apt-col, table.calendar td.apt-col{
+    text-align:left;
+    padding:0 8px;
+    min-width:170px;
+    position:sticky;
+    left:0;
+    background:#fff;
+    font-weight:700;
+    z-index:2;
+  }
+  table.calendar thead th{
+    background:var(--blue-light);
+    color:var(--blue-dark);
+    font-weight:700;
+    position:sticky;
+    top:0;
+    z-index:1;
+  }
+  table.calendar thead th.apt-col{ z-index:3; }
+  table.calendar td.libre{ background:var(--green-bg); cursor:pointer; }
+  table.calendar td.occupe{ background:var(--red-bg); cursor:pointer; }
+  table.calendar td.today-col{ box-shadow: inset 0 0 0 2px var(--blue); }
+  table.calendar td.libre:hover{ filter:brightness(0.95); }
+  table.calendar td.occupe:hover{ filter:brightness(0.95); }
+
+  #dayDetails{
+    margin-top:16px;
+    padding:14px 16px;
+    border-radius:8px;
+    background:var(--blue-light);
+    font-size:13px;
+    display:none;
+  }
+  #dayDetails.show{ display:block; }
+  #dayDetails h4{ margin:0 0 8px; color:var(--blue-dark); font-size:14px; }
+
+  .cal-legend-list{
+    margin-top:16px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .legend-chip{
+    display:inline-block;
+    padding:5px 10px;
+    border-radius:6px;
+    font-size:12px;
+    font-weight:600;
+  }
+
+  /* Modal */
+  .overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(20,30,40,0.45);
+    align-items:center; justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  .overlay.show{ display:flex; }
+  .modal{
+    background:#fff;
+    border-radius:12px;
+    width:100%;
+    max-width:560px;
+    max-height:90vh;
+    overflow-y:auto;
+    padding:24px 26px;
+  }
+  .modal h2{ margin:0 0 16px; font-size:17px; color:var(--blue-dark); }
+  .form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .form-grid .full{ grid-column:1/-1; }
+  .form-grid label{
+    display:block;
+    font-size:12px;
+    font-weight:700;
+    color:#5b6b78;
+    margin-bottom:4px;
+  }
+  .form-grid input, .form-grid select, .form-grid textarea{ width:100%; }
+  .modal-actions{
+    display:flex;
+    justify-content:space-between;
+    margin-top:20px;
+    gap:10px;
+  }
+  .modal-actions .left{ display:flex; gap:10px; }
+  .hint{ font-size:11px; color:#8a97a3; margin-top:3px; }
+  .toast{
+    position:fixed;
+    bottom:24px; right:24px;
+    background:var(--blue-dark);
+    color:#fff;
+    padding:12px 18px;
+    border-radius:8px;
+    font-size:13px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2);
+    opacity:0; transform:translateY(10px);
+    transition:0.25s;
+    z-index:200;
+    pointer-events:none;
+    max-width:80vw;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+  .toast.error{ background:#9C0006; }
+  footer{ text-align:center; font-size:11px; color:#9aa7b2; padding:20px; }
+  .settings-actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Système de réservation — 5 appartements</h1>
+    <p>Gestion des réservations, disponibilités et occupation</p>
+  </div>
+  <div class="settings-actions">
+    <span id="connStatus"><i></i><span id="connStatusText">Connexion...</span></span>
+    <button class="btn btn-ghost btn-sm" id="btnRefresh">Actualiser</button>
+    <button class="btn btn-ghost btn-sm" id="btnExport">Exporter (JSON)</button>
+    <button class="btn btn-ghost btn-sm" id="btnImport">Importer</button>
+    <input type="file" id="fileImport" accept="application/json" style="display:none">
+  </div>
+</header>
+
+<nav class="tabs">
+  <button data-tab="dashboard" class="active">Tableau de bord</button>
+  <button data-tab="reservations">Réservations</button>
+  <button data-tab="calendar">Calendrier</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div class="view active" id="view-dashboard">
+    <div class="totals" id="totalsBar"></div>
+    <div class="cards" id="dashboardCards"></div>
+
+    <section class="block">
+      <h2>Arrivées &amp; départs — 7 prochains jours</h2>
+      <ul class="upcoming-list" id="upcomingList"></ul>
+    </section>
+  </div>
+
+  <!-- RESERVATIONS -->
+  <div class="view" id="view-reservations">
+    <div class="toolbar">
+      <div class="filters">
+        <select id="filterApt"><option value="">Tous les appartements</option></select>
+        <select id="filterStatus">
+          <option value="">Tous les statuts</option>
+          <option>Confirmée</option>
+          <option>En attente</option>
+          <option>Annulée</option>
+        </select>
+        <input type="search" id="filterSearch" placeholder="Rechercher un client...">
+      </div>
+      <button class="btn btn-primary" id="btnAddRes">+ Nouvelle réservation</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Appartement</th>
+            <th>Client</th>
+            <th>Arrivée</th>
+            <th>Départ</th>
+            <th>Nuits</th>
+            <th>Total</th>
+            <th>Solde</th>
+            <th>Statut</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="resTableBody"></tbody>
+      </table>
+      <div class="empty-msg" id="resEmptyMsg" style="display:none;">Aucune réservation ne correspond à ces filtres.</div>
+    </div>
+  </div>
+
+  <!-- CALENDAR -->
+  <div class="view" id="view-calendar">
+    <div class="cal-controls">
+      <button class="btn btn-ghost btn-sm" id="prevMonth">&larr;</button>
+      <div class="month-label" id="monthLabel"></div>
+      <button class="btn btn-ghost btn-sm" id="nextMonth">&rarr;</button>
+      <button class="btn btn-ghost btn-sm" id="todayBtn">Aujourd'hui</button>
+      <div class="legend">
+        <span><i style="background:var(--green-bg)"></i>Libre</span>
+        <span>Chaque couleur = une réservation différente</span>
+      </div>
+    </div>
+    <div class="cal-table-wrap">
+      <table class="calendar" id="calendarTable"></table>
+    </div>
+    <div id="dayDetails"></div>
+    <div class="cal-legend-list" id="calendarLegendList"></div>
+  </div>
+
+</main>
+
+<footer>Système de réservation — données stockées en ligne et partagées entre vos appareils (Android, iPhone, Windows).</footer>
+
+<!-- MODAL -->
+<div class="overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Nouvelle réservation</h2>
+    <form id="resForm">
+      <input type="hidden" id="resId">
+      <div class="form-grid">
+        <div>
+          <label>Appartement</label>
+          <select id="f_apartment" required></select>
+        </div>
+        <div>
+          <label>Statut</label>
+          <select id="f_status" required>
+            <option>Confirmée</option>
+            <option>En attente</option>
+            <option>Annulée</option>
+          </select>
+        </div>
+        <div class="full">
+          <label>Client</label>
+          <input type="text" id="f_client" required placeholder="Nom du client">
+        </div>
+        <div>
+          <label>Téléphone</label>
+          <input type="tel" id="f_phone" placeholder="06...">
+        </div>
+        <div>
+          <label>Email</label>
+          <input type="email" id="f_email" placeholder="client@mail.com">
+        </div>
+        <div>
+          <label>Date d'arrivée</label>
+          <input type="date" id="f_checkin" required>
+        </div>
+        <div>
+          <label>Date de départ</label>
+          <input type="date" id="f_checkout" required>
+          <div class="hint">La nuit du départ est libre.</div>
+        </div>
+        <div>
+          <label>Prix / nuit (€)</label>
+          <input type="number" id="f_price" min="0" step="1" value="0">
+        </div>
+        <div>
+          <label>Acompte (€)</label>
+          <input type="number" id="f_deposit" min="0" step="1" value="0">
+        </div>
+        <div class="full">
+          <label>Notes</label>
+          <textarea id="f_notes" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <div class="left">
+          <button type="button" class="btn btn-danger" id="btnDeleteRes" style="display:none;">Supprimer</button>
+        </div>
+        <div class="left">
+          <button type="button" class="btn btn-ghost" id="btnCancelModal">Annuler</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitRes">Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var APARTMENTS = ["Appartement RDC Droite","Appartement RDC Gauche","Appartement 1er Etage","Appartement 2eme Etage","Appartement 3eme Etage"];
+  var MS_DAY = 86400000;
+  var API_URL = "/api/reservations";
+  var AUTO_REFRESH_MS = 30000;
+
+  // Palette de couleurs distinctes pour différencier visuellement chaque réservation
+  var RES_COLORS = [
+    {bg:"#FFD6A5", text:"#7A4A00"},
+    {bg:"#A0C4FF", text:"#00296B"},
+    {bg:"#FFADAD", text:"#6A040F"},
+    {bg:"#BDB2FF", text:"#3C096C"},
+    {bg:"#FFC6FF", text:"#6A0572"},
+    {bg:"#9BF6FF", text:"#023E8A"},
+    {bg:"#FDFFB6", text:"#6B6100"},
+    {bg:"#CDB4DB", text:"#432818"},
+    {bg:"#FFCFD2", text:"#7C0A02"},
+    {bg:"#B0EFEB", text:"#0B4F4A"}
+  ];
+  function colorForReservation(id){
+    var hash = 0;
+    for(var i=0;i<id.length;i++){ hash = (hash*31 + id.charCodeAt(i)) >>> 0; }
+    return RES_COLORS[hash % RES_COLORS.length];
+  }
+
+  var state = {
+    reservations: [],
+    calMonth: new Date().getMonth(),
+    calYear: new Date().getFullYear(),
+    editingId: null,
+    online: true
+  };
+
+  // ---------- utils ----------
+  function todayStr(){ return toISO(new Date()); }
+  function toISO(d){
+    var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+    return y+"-"+m+"-"+day;
+  }
+  function parseISO(s){
+    var parts = s.split("-");
+    return new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10));
+  }
+  function nightsBetween(a,b){
+    return Math.round((parseISO(b)-parseISO(a))/MS_DAY);
+  }
+  function fmtDate(s){
+    if(!s) return "-";
+    var d = parseISO(s);
+    return d.toLocaleDateString("fr-FR", {day:"2-digit", month:"2-digit", year:"numeric"});
+  }
+  function fmtMoney(n){
+    return (Math.round(n*100)/100).toLocaleString("fr-FR") + " €";
+  }
+  function isBlocking(r){ return r.status !== "Annulée"; }
+  function overlapsDate(r, dateStr){
+    return dateStr >= r.checkin && dateStr < r.checkout;
+  }
+  function showToast(msg, isError){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.toggle("error", !!isError);
+    t.classList.add("show");
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function(){ t.classList.remove("show"); }, 2600);
+  }
+  function setConnStatus(online, label){
+    state.online = online;
+    var el = document.getElementById("connStatus");
+    el.classList.toggle("offline", !online);
+    document.getElementById("connStatusText").textContent = label || (online ? "En ligne" : "Hors ligne");
+  }
+
+  // ---------- API (stockage partagé en ligne) ----------
+  function apiRequest(method, body, query){
+    var url = API_URL + (query ? ("?" + query) : "");
+    var opts = { method: method, headers: {} };
+    if(body !== undefined){
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(url, opts).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(data){
+        if(!res.ok){
+          var err = new Error((data && data.message) || (data && data.error) || ("Erreur HTTP " + res.status));
+          err.data = data;
+          throw err;
+        }
+        return data;
+      });
+    });
+  }
+  function apiGetAll(){ return apiRequest("GET"); }
+  function apiCreate(data){ return apiRequest("POST", data); }
+  function apiUpdate(id, data){ var d=Object.assign({}, data, {id:id}); return apiRequest("PUT", d); }
+  function apiDelete(id){ return apiRequest("DELETE", undefined, "id=" + encodeURIComponent(id)); }
+
+  function seedExamplesOnServer(){
+    var t = new Date();
+    function plus(days){ var d=new Date(t); d.setDate(d.getDate()+days); return toISO(d); }
+    var examples = [
+      {apartment:APARTMENTS[0], client:"Dupont Marie", phone:"0601020304", email:"marie.dupont@mail.com",
+       checkin:plus(3), checkout:plus(7), price:95, deposit:200, status:"Confirmée", notes:"EXEMPLE - à remplacer", isExample:true},
+      {apartment:APARTMENTS[2], client:"Ben Ali Karim", phone:"0611223344", email:"karim.benali@mail.com",
+       checkin:plus(10), checkout:plus(14), price:80, deposit:100, status:"En attente", notes:"EXEMPLE - à remplacer", isExample:true},
+      {apartment:APARTMENTS[4], client:"Garcia Laura", phone:"0622334455", email:"laura.garcia@mail.com",
+       checkin:plus(1), checkout:plus(4), price:110, deposit:0, status:"Annulée", notes:"EXEMPLE - à remplacer", isExample:true}
+    ];
+    var chain = Promise.resolve();
+    examples.forEach(function(ex){
+      chain = chain.then(function(){ return apiCreate(ex); });
+    });
+    return chain;
+  }
+
+  function loadFromServer(showErrors){
+    return apiGetAll().then(function(data){
+      setConnStatus(true);
+      if(data.length === 0){
+        return seedExamplesOnServer().then(apiGetAll).then(function(data2){
+          state.reservations = data2;
+        });
+      }
+      state.reservations = data;
+    }).catch(function(err){
+      setConnStatus(false, "Hors ligne");
+      if(showErrors){
+        var msg = (err && err.message) || "Impossible de contacter le serveur.";
+        showToast(msg, true);
+      }
+      throw err;
+    });
+  }
+
+  // ---------- derived data ----------
+  function activeReservationsFor(apt){
+    return state.reservations.filter(function(r){ return r.apartment===apt && isBlocking(r); });
+  }
+  function nightsIn365(apt){
+    var start = new Date(); start.setHours(0,0,0,0);
+    var end = new Date(start); end.setDate(end.getDate()+365);
+    var startS = toISO(start), endS = toISO(end);
+    var total = 0;
+    activeReservationsFor(apt).forEach(function(r){
+      var from = r.checkin > startS ? r.checkin : startS;
+      var to = r.checkout < endS ? r.checkout : endS;
+      var n = nightsBetween(from, to);
+      if(n>0) total += n;
+    });
+    return total;
+  }
+  function revenueFor(apt){
+    var total = 0;
+    activeReservationsFor(apt).forEach(function(r){
+      total += (nightsBetween(r.checkin,r.checkout) * (parseFloat(r.price)||0));
+    });
+    return total;
+  }
+  function reservationOn(apt, dateStr){
+    return state.reservations.find(function(r){
+      return r.apartment===apt && isBlocking(r) && overlapsDate(r,dateStr);
+    });
+  }
+  function rangesOverlap(startA, endA, startB, endB){
+    return startA < endB && endA > startB;
+  }
+  function findConflict(apartment, checkin, checkout, excludeId){
+    return state.reservations.find(function(r){
+      if(excludeId && r.id===excludeId) return false;
+      if(r.apartment!==apartment) return false;
+      if(!isBlocking(r)) return false;
+      return rangesOverlap(checkin, checkout, r.checkin, r.checkout);
+    });
+  }
+
+  // ---------- rendering: dashboard ----------
+  function renderDashboard(){
+    var totalActive=0, totalNights=0, totalRevenue=0;
+    var cardsHtml = "";
+    APARTMENTS.forEach(function(apt){
+      var active = activeReservationsFor(apt).length;
+      var nights = nightsIn365(apt);
+      var occPct = Math.round((nights/365)*1000)/10;
+      var revenue = revenueFor(apt);
+      totalActive += active; totalNights += nights; totalRevenue += revenue;
+      cardsHtml += ""+
+        "<div class='card'>"+
+          "<h3>"+apt+"</h3>"+
+          "<div class='stat-row'><span>Réservations actives</span><span>"+active+"</span></div>"+
+          "<div class='stat-row'><span>Nuits réservées (12 mois)</span><span>"+nights+"</span></div>"+
+          "<div class='stat-row'><span>Taux d'occupation</span><span>"+occPct+"%</span></div>"+
+          "<div class='stat-row'><span>Revenu prévisionnel</span><span>"+fmtMoney(revenue)+"</span></div>"+
+          "<div class='occ-bar'><div class='occ-bar-fill' style='width:"+Math.min(occPct,100)+"%'></div></div>"+
+        "</div>";
+    });
+    document.getElementById("dashboardCards").innerHTML = cardsHtml;
+
+    var occAll = Math.round((totalNights/(365*APARTMENTS.length))*1000)/10;
+    document.getElementById("totalsBar").innerHTML =
+      "<div><strong>"+totalActive+"</strong>Réservations actives</div>"+
+      "<div><strong>"+totalNights+"</strong>Nuits réservées (12 mois, tous appts)</div>"+
+      "<div><strong>"+occAll+"%</strong>Taux d'occupation global</div>"+
+      "<div><strong>"+fmtMoney(totalRevenue)+"</strong>Revenu prévisionnel total</div>";
+
+    // upcoming 7 days
+    var start = new Date(); start.setHours(0,0,0,0);
+    var end = new Date(start); end.setDate(end.getDate()+7);
+    var startS = toISO(start), endS = toISO(end);
+    var events = [];
+    state.reservations.forEach(function(r){
+      if(!isBlocking(r)) return;
+      if(r.checkin>=startS && r.checkin<endS) events.push({type:"Arrivée", date:r.checkin, r:r});
+      if(r.checkout>=startS && r.checkout<endS) events.push({type:"Départ", date:r.checkout, r:r});
+    });
+    events.sort(function(a,b){ return a.date<b.date?-1:1; });
+    var list = document.getElementById("upcomingList");
+    if(events.length===0){
+      list.innerHTML = "<li style='justify-content:center;color:#8a97a3;'>Aucune arrivée ou départ dans les 7 prochains jours.</li>";
+    } else {
+      list.innerHTML = events.map(function(e){
+        return "<li><span>"+fmtDate(e.date)+" — "+e.type+" — "+e.r.apartment+" — "+escapeHtml(e.r.client)+"</span>"+
+          "<span class='tag' data-status='"+e.r.status+"'>"+e.r.status+"</span></li>";
+      }).join("");
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  // ---------- rendering: reservations table ----------
+  function populateApartmentSelects(){
+    var filterSel = document.getElementById("filterApt");
+    var formSel = document.getElementById("f_apartment");
+    filterSel.innerHTML = "<option value=''>Tous les appartements</option>" +
+      APARTMENTS.map(function(a){ return "<option>"+a+"</option>"; }).join("");
+    formSel.innerHTML = APARTMENTS.map(function(a){ return "<option>"+a+"</option>"; }).join("");
+  }
+
+  function renderReservationsTable(){
+    var aptFilter = document.getElementById("filterApt").value;
+    var statusFilter = document.getElementById("filterStatus").value;
+    var search = document.getElementById("filterSearch").value.trim().toLowerCase();
+
+    var rows = state.reservations.filter(function(r){
+      if(aptFilter && r.apartment!==aptFilter) return false;
+      if(statusFilter && r.status!==statusFilter) return false;
+      if(search && r.client.toLowerCase().indexOf(search)===-1) return false;
+      return true;
+    }).sort(function(a,b){ return a.checkin<b.checkin?-1:1; });
+
+    var tbody = document.getElementById("resTableBody");
+    if(rows.length===0){
+      tbody.innerHTML = "";
+      document.getElementById("resEmptyMsg").style.display = "block";
+      return;
+    }
+    document.getElementById("resEmptyMsg").style.display = "none";
+
+    tbody.innerHTML = rows.map(function(r){
+      var nights = nightsBetween(r.checkin, r.checkout);
+      var total = nights * (parseFloat(r.price)||0);
+      var balance = total - (parseFloat(r.deposit)||0);
+      var dotHtml = "";
+      if(isBlocking(r)){
+        var c = colorForReservation(r.id);
+        dotHtml = "<span style='display:inline-block;width:10px;height:10px;border-radius:3px;background:"+c.bg+";margin-right:6px;vertical-align:middle;'></span>";
+      }
+      return "<tr data-id='"+r.id+"'>"+
+        "<td>"+dotHtml+r.apartment+"</td>"+
+        "<td>"+escapeHtml(r.client)+"</td>"+
+        "<td>"+fmtDate(r.checkin)+"</td>"+
+        "<td>"+fmtDate(r.checkout)+"</td>"+
+        "<td>"+nights+"</td>"+
+        "<td>"+fmtMoney(total)+"</td>"+
+        "<td>"+fmtMoney(balance)+"</td>"+
+        "<td><span class='tag' data-status='"+r.status+"'>"+r.status+"</span></td>"+
+        "<td><button class='btn btn-ghost btn-sm editRes'>Modifier</button></td>"+
+        "</tr>";
+    }).join("");
+  }
+
+  // ---------- modal ----------
+  function openModal(reservation){
+    state.editingId = reservation ? reservation.id : null;
+    document.getElementById("modalTitle").textContent = reservation ? "Modifier la réservation" : "Nouvelle réservation";
+    document.getElementById("btnDeleteRes").style.display = reservation ? "inline-block" : "none";
+    document.getElementById("f_apartment").value = reservation ? reservation.apartment : APARTMENTS[0];
+    document.getElementById("f_status").value = reservation ? reservation.status : "Confirmée";
+    document.getElementById("f_client").value = reservation ? reservation.client : "";
+    document.getElementById("f_phone").value = reservation ? reservation.phone : "";
+    document.getElementById("f_email").value = reservation ? reservation.email : "";
+    document.getElementById("f_checkin").value = reservation ? reservation.checkin : todayStr();
+    var defCheckout = reservation ? reservation.checkout : toISO(new Date(Date.now()+MS_DAY));
+    document.getElementById("f_checkout").value = defCheckout;
+    document.getElementById("f_price").value = reservation ? reservation.price : 0;
+    document.getElementById("f_deposit").value = reservation ? reservation.deposit : 0;
+    document.getElementById("f_notes").value = reservation ? reservation.notes : "";
+    document.getElementById("modalOverlay").classList.add("show");
+  }
+  function closeModal(){
+    document.getElementById("modalOverlay").classList.remove("show");
+    document.getElementById("resForm").reset();
+    state.editingId = null;
+  }
+  function openModalPrefill(apt, dateStr){
+    openModal(null);
+    document.getElementById("f_apartment").value = apt;
+    document.getElementById("f_checkin").value = dateStr;
+    document.getElementById("f_checkout").value = toISO(new Date(parseISO(dateStr).getTime()+MS_DAY));
+  }
+
+  function setSubmitting(isSubmitting){
+    document.getElementById("btnSubmitRes").disabled = isSubmitting;
+    document.getElementById("btnDeleteRes").disabled = isSubmitting;
+  }
+
+  function handleFormSubmit(e){
+    e.preventDefault();
+    var checkin = document.getElementById("f_checkin").value;
+    var checkout = document.getElementById("f_checkout").value;
+    if(checkout <= checkin){
+      alert("La date de départ doit être postérieure à la date d'arrivée.");
+      return;
+    }
+    var apartment = document.getElementById("f_apartment").value;
+    var status = document.getElementById("f_status").value;
+    if(status !== "Annulée"){
+      var conflict = findConflict(apartment, checkin, checkout, state.editingId);
+      if(conflict){
+        alert("Conflit de réservation : "+apartment+" est déjà réservé par "+conflict.client+
+          " du "+fmtDate(conflict.checkin)+" au "+fmtDate(conflict.checkout)+
+          " (statut : "+conflict.status+"). Modifiez les dates, l'appartement, ou passez cette réservation en Annulée.");
+        return;
+      }
+    }
+    var data = {
+      apartment: apartment,
+      status: status,
+      client: document.getElementById("f_client").value.trim() || "Client sans nom",
+      phone: document.getElementById("f_phone").value.trim(),
+      email: document.getElementById("f_email").value.trim(),
+      checkin: checkin,
+      checkout: checkout,
+      price: parseFloat(document.getElementById("f_price").value)||0,
+      deposit: parseFloat(document.getElementById("f_deposit").value)||0,
+      notes: document.getElementById("f_notes").value.trim()
+    };
+
+    setSubmitting(true);
+    var op = state.editingId ? apiUpdate(state.editingId, data) : apiCreate(data);
+    op.then(function(){
+      showToast(state.editingId ? "Réservation mise à jour" : "Réservation ajoutée");
+      closeModal();
+      return loadFromServer(true);
+    }).then(function(){
+      renderAll();
+    }).catch(function(err){
+      alert("Échec de l'enregistrement : " + ((err && err.message) || "erreur inconnue"));
+    }).finally(function(){
+      setSubmitting(false);
+    });
+  }
+
+  function handleDelete(){
+    if(!state.editingId) return;
+    if(!confirm("Supprimer définitivement cette réservation ?")) return;
+    setSubmitting(true);
+    apiDelete(state.editingId).then(function(){
+      showToast("Réservation supprimée");
+      closeModal();
+      return loadFromServer(true);
+    }).then(function(){
+      renderAll();
+    }).catch(function(err){
+      alert("Échec de la suppression : " + ((err && err.message) || "erreur inconnue"));
+    }).finally(function(){
+      setSubmitting(false);
+    });
+  }
+
+  // ---------- calendar ----------
+  var MONTH_NAMES = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  var DOW = ["L","M","M","J","V","S","D"];
+
+  function renderCalendar(){
+    var y = state.calYear, m = state.calMonth;
+    document.getElementById("monthLabel").textContent = MONTH_NAMES[m] + " " + y;
+    var daysInMonth = new Date(y, m+1, 0).getDate();
+
+    var html = "<thead><tr><th class='apt-col'>Appartement</th>";
+    for(var d=1; d<=daysInMonth; d++){
+      var dow = new Date(y,m,d).getDay();
+      var label = DOW[(dow+6)%7];
+      html += "<th title='"+label+" "+d+"'>"+d+"</th>";
+    }
+    html += "</tr></thead><tbody>";
+
+    var todayS = todayStr();
+    var visibleIds = {};
+    APARTMENTS.forEach(function(apt){
+      html += "<tr><td class='apt-col'>"+apt+"</td>";
+      for(var d=1; d<=daysInMonth; d++){
+        var dateObj = new Date(y,m,d);
+        var dateS = toISO(dateObj);
+        var res = reservationOn(apt, dateS);
+        var cls = res ? "occupe" : "libre";
+        if(dateS===todayS) cls += " today-col";
+        var style = "";
+        if(res){
+          var c = colorForReservation(res.id);
+          style = " style='background:"+c.bg+";color:"+c.text+";'";
+          visibleIds[res.id] = true;
+        }
+        html += "<td class='"+cls+"'"+style+" data-apt=\""+apt.replace(/"/g,'&quot;')+"\" data-date='"+dateS+"'></td>";
+      }
+      html += "</tr>";
+    });
+    html += "</tbody>";
+    document.getElementById("calendarTable").innerHTML = html;
+    document.getElementById("dayDetails").classList.remove("show");
+    renderCalendarLegend(visibleIds);
+  }
+
+  function renderCalendarLegend(visibleIds){
+    var el = document.getElementById("calendarLegendList");
+    if(!el) return;
+    var items = Object.keys(visibleIds).map(function(id){
+      return state.reservations.find(function(r){ return r.id===id; });
+    }).filter(Boolean).sort(function(a,b){ return a.checkin<b.checkin?-1:1; });
+    if(items.length===0){
+      el.innerHTML = "<span style='color:#8a97a3;'>Aucune réservation active ce mois-ci.</span>";
+      return;
+    }
+    el.innerHTML = items.map(function(r){
+      var c = colorForReservation(r.id);
+      return "<span class='legend-chip' style='background:"+c.bg+";color:"+c.text+";'>"+
+        escapeHtml(r.client)+" — "+r.apartment+" ("+fmtDate(r.checkin)+" → "+fmtDate(r.checkout)+")</span>";
+    }).join("");
+  }
+
+  function handleCalendarClick(e){
+    var td = e.target.closest("td");
+    if(!td || !td.dataset.date) return;
+    var apt = td.dataset.apt, dateS = td.dataset.date;
+    var panel = document.getElementById("dayDetails");
+    var res = reservationOn(apt, dateS);
+    if(res){
+      var rc = colorForReservation(res.id);
+      panel.innerHTML = "<h4><span style='display:inline-block;width:12px;height:12px;border-radius:3px;background:"+rc.bg+";margin-right:6px;vertical-align:middle;'></span>"+apt+" — "+fmtDate(dateS)+" — Occupé</h4>"+
+        "<div>Client : <strong>"+escapeHtml(res.client)+"</strong> &nbsp;|&nbsp; Statut : <span class='tag' data-status='"+res.status+"'>"+res.status+"</span></div>"+
+        "<div>Séjour : "+fmtDate(res.checkin)+" &rarr; "+fmtDate(res.checkout)+"</div>"+
+        "<div style='margin-top:10px;'><button class='btn btn-primary btn-sm' id='editFromCal'>Modifier cette réservation</button></div>";
+      panel.classList.add("show");
+      document.getElementById("editFromCal").onclick = function(){ openModal(res); };
+    } else {
+      panel.innerHTML = "<h4>"+apt+" — "+fmtDate(dateS)+" — Libre</h4>"+
+        "<div style='margin-top:10px;'><button class='btn btn-primary btn-sm' id='addFromCal'>Ajouter une réservation ici</button></div>";
+      panel.classList.add("show");
+      document.getElementById("addFromCal").onclick = function(){ openModalPrefill(apt, dateS); };
+    }
+  }
+
+  // ---------- tabs ----------
+  function switchTab(tab){
+    document.querySelectorAll("nav.tabs button").forEach(function(b){
+      b.classList.toggle("active", b.dataset.tab===tab);
+    });
+    document.querySelectorAll(".view").forEach(function(v){
+      v.classList.toggle("active", v.id==="view-"+tab);
+    });
+  }
+
+  // ---------- export / import ----------
+  function exportData(){
+    var blob = new Blob([JSON.stringify(state.reservations, null, 2)], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "reservations_hotel_"+todayStr()+".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  function importData(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if(!Array.isArray(data)) throw new Error("format invalide");
+        if(!confirm("Importer "+data.length+" réservation(s) va REMPLACER toutes les réservations actuelles sur le serveur (visibles sur tous vos appareils). Continuer ?")) return;
+
+        showToast("Import en cours...");
+        var chain = Promise.all(state.reservations.map(function(r){ return apiDelete(r.id); }));
+        chain = chain.then(function(){
+          var seq = Promise.resolve();
+          data.forEach(function(item){
+            seq = seq.then(function(){ return apiCreate(item); });
+          });
+          return seq;
+        });
+        chain.then(function(){ return loadFromServer(true); })
+          .then(function(){
+            renderAll();
+            showToast("Import réussi ("+data.length+" réservations)");
+          })
+          .catch(function(err){
+            alert("Échec de l'import : " + ((err && err.message) || "erreur inconnue"));
+          });
+      }catch(err){
+        alert("Fichier invalide : "+err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- init ----------
+  function renderAll(){
+    renderDashboard();
+    renderReservationsTable();
+    renderCalendar();
+  }
+
+  function refreshFromServer(){
+    return loadFromServer(false).then(function(){ renderAll(); }).catch(function(){});
+  }
+
+  function init(){
+    populateApartmentSelects();
+
+    document.querySelectorAll("nav.tabs button").forEach(function(b){
+      b.addEventListener("click", function(){ switchTab(b.dataset.tab); });
+    });
+
+    document.getElementById("btnAddRes").addEventListener("click", function(){ openModal(null); });
+    document.getElementById("btnCancelModal").addEventListener("click", closeModal);
+    document.getElementById("modalOverlay").addEventListener("click", function(e){
+      if(e.target.id==="modalOverlay") closeModal();
+    });
+    document.getElementById("resForm").addEventListener("submit", handleFormSubmit);
+    document.getElementById("btnDeleteRes").addEventListener("click", handleDelete);
+
+    document.getElementById("resTableBody").addEventListener("click", function(e){
+      var tr = e.target.closest("tr");
+      if(!tr) return;
+      var r = state.reservations.find(function(x){ return x.id===tr.dataset.id; });
+      if(r) openModal(r);
+    });
+
+    document.getElementById("filterApt").addEventListener("change", renderReservationsTable);
+    document.getElementById("filterStatus").addEventListener("change", renderReservationsTable);
+    document.getElementById("filterSearch").addEventListener("input", renderReservationsTable);
+
+    document.getElementById("prevMonth").addEventListener("click", function(){
+      state.calMonth--; if(state.calMonth<0){ state.calMonth=11; state.calYear--; }
+      renderCalendar();
+    });
+    document.getElementById("nextMonth").addEventListener("click", function(){
+      state.calMonth++; if(state.calMonth>11){ state.calMonth=0; state.calYear++; }
+      renderCalendar();
+    });
+    document.getElementById("todayBtn").addEventListener("click", function(){
+      var n = new Date(); state.calMonth=n.getMonth(); state.calYear=n.getFullYear();
+      renderCalendar();
+    });
+    document.getElementById("calendarTable").addEventListener("click", handleCalendarClick);
+
+    document.getElementById("btnExport").addEventListener("click", exportData);
+    document.getElementById("btnImport").addEventListener("click", function(){
+      document.getElementById("fileImport").click();
+    });
+    document.getElementById("fileImport").addEventListener("change", function(e){
+      if(e.target.files[0]) importData(e.target.files[0]);
+      e.target.value = "";
+    });
+    document.getElementById("btnRefresh").addEventListener("click", function(){
+      setConnStatus(true, "Actualisation...");
+      refreshFromServer();
+    });
+
+    window.addEventListener("focus", refreshFromServer);
+    document.addEventListener("visibilitychange", function(){
+      if(document.visibilityState === "visible") refreshFromServer();
+    });
+    setInterval(refreshFromServer, AUTO_REFRESH_MS);
+
+    setConnStatus(true, "Connexion...");
+    loadFromServer(true).then(function(){
+      renderAll();
+    }).catch(function(){
+      renderAll();
+    });
+  }
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("/sw.js").catch(function(){});
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
