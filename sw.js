@@ -3,55 +3,56 @@
 // reservation data is shared live between devices.
 var CACHE_NAME = "hotel-resa-shell-v1";
 var SHELL_FILES = [
-    "/",
-    "/index.html",
-    "/manifest.webmanifest",
-    "/icons/icon-192.png",
-    "/icons/icon-512.png",
-    "/icons/apple-touch-icon.png"
-  ];
+  "/",
+  "/index.html",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/apple-touch-icon.png"
+];
 
 self.addEventListener("install", function (event) {
-    event.waitUntil(
-          caches.open(CACHE_NAME).then(function (cache) {
-                  return cache.addAll(SHELL_FILES);
-          }).then(function () {
-                  return self.skipWaiting();
-          })
-        );
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(function (cache) {
+      return cache.addAll(SHELL_FILES);
+    }).then(function () {
+      return self.skipWaiting();
+    })
+  );
 });
 
 self.addEventListener("activate", function (event) {
-    event.waitUntil(
-          caches.keys().then(function (names) {
-                  return Promise.all(
-                            names.filter(function (n) { return n !== CACHE_NAME; })
-                                 .map(function (n) { return caches.delete(n); })
-                          );
-          }).then(function () { return self.clients.claim(); })
-        );
+  event.waitUntil(
+    caches.keys().then(function (names) {
+      return Promise.all(
+        names.filter(function (n) { return n !== CACHE_NAME; })
+             .map(function (n) { return caches.delete(n); })
+      );
+    }).then(function () { return self.clients.claim(); })
+  );
 });
 
 self.addEventListener("fetch", function (event) {
-    var url = new URL(event.request.url);
+  var url = new URL(event.request.url);
 
-                        if (url.pathname.indexOf("/api/") === 0) {
-                              event.respondWith(fetch(event.request));
-                              return;
-                        }
+  // Never cache API calls — always fetch fresh, shared data.
+  if (url.pathname.indexOf("/api/") === 0) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
-                       if (event.request.method !== "GET") return;
+  if (event.request.method !== "GET") return;
 
-                        event.respondWith(
-                              caches.match(event.request).then(function (cached) {
-                                      var networkFetch = fetch(event.request).then(function (response) {
-                                                if (response && response.status === 200) {
-                                                            var copy = response.clone();
-                                                            caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });
-                                                }
-                                                return response;
-                                      }).catch(function () { return cached; });
-                                      return cached || networkFetch;
-                              })
-                            );
+  event.respondWith(
+    caches.match(event.request).then(function (cached) {
+      var networkFetch = fetch(event.request).then(function (response) {
+        if (response && response.status === 200) {
+          var copy = response.clone();
+          caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });
+        }
+        return response;
+      }).catch(function () { return cached; });
+      return cached || networkFetch;
+    })
+  );
 });
