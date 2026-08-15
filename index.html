@@ -297,6 +297,23 @@
     z-index:1;
   }
   table.calendar thead th.apt-col{ z-index:3; }
+  table.calendar thead th .dow{
+    display:block;
+    font-size:9px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.3px;
+    opacity:0.75;
+    line-height:1.4;
+  }
+  table.calendar thead th .dnum{
+    display:block;
+    font-size:12px;
+    font-weight:700;
+    line-height:1.3;
+  }
+  table.calendar thead th.weekend-col{ background:#dbe4ee; }
+  table.calendar td.weekend-col.libre{ filter:brightness(0.97); }
   table.calendar td.libre{ background:var(--green-bg); cursor:pointer; }
   table.calendar td.occupe{ background:var(--red-bg); cursor:pointer; }
   table.calendar td.today-col{ box-shadow: inset 0 0 0 2px var(--blue); }
@@ -949,10 +966,14 @@
     var daysInMonth = new Date(y, m+1, 0).getDate();
 
     var html = "<thead><tr><th class='apt-col'>Appartement</th>";
+    var weekendCols = {};
     for(var d=1; d<=daysInMonth; d++){
       var dow = new Date(y,m,d).getDay();
       var label = DOW[(dow+6)%7];
-      html += "<th title='"+label+" "+d+"'>"+d+"</th>";
+      var isWeekend = (dow===0 || dow===6);
+      weekendCols[d] = isWeekend;
+      html += "<th title='"+label+" "+d+"'"+(isWeekend?" class='weekend-col'":"")+">"
+            + "<span class='dow'>"+label+"</span><span class='dnum'>"+d+"</span></th>";
     }
     html += "</tr></thead><tbody>";
 
@@ -965,6 +986,7 @@
         var dateS = toISO(dateObj);
         var res = reservationOn(apt, dateS);
         var cls = res ? "occupe" : "libre";
+        if(weekendCols[d]) cls += " weekend-col";
         if(dateS===todayS) cls += " today-col";
         var style = "";
         if(res){
