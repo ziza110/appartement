@@ -191,6 +191,9 @@
   .tag.Confirmée{ background:var(--green-bg); color:var(--green-text); }
   .tag.En.attente, .tag[data-status="En attente"]{ background:var(--orange-bg); color:var(--orange-text); }
   .tag[data-status="Annulée"]{ background:var(--red-bg); color:var(--red-text); }
+  .tag[data-payment="Payé"]{ background:var(--green-bg); color:var(--green-text); }
+  .tag[data-payment="Partiel"]{ background:var(--orange-bg); color:var(--orange-text); }
+  .tag[data-payment="Non payé"]{ background:var(--red-bg); color:var(--red-text); }
 
   /* Reservations table */
   .toolbar{
@@ -540,13 +543,15 @@
       <table>
         <thead>
           <tr>
-            <th>Appartement</th>
+            <th>N°</th>
             <th>Client</th>
+            <th>Appartement</th>
             <th>Arrivée</th>
             <th>Départ</th>
-            <th>Nuits</th>
+            <th>Pers.</th>
             <th>Total</th>
             <th>Solde</th>
+            <th>Paiement</th>
             <th>Statut</th>
             <th></th>
           </tr>
@@ -584,6 +589,7 @@
 <div class="overlay" id="modalOverlay">
   <div class="modal">
     <h2 id="modalTitle">Nouvelle réservation</h2>
+    <div class="hint" id="modalResNumber" style="display:none;margin-bottom:10px;"></div>
     <form id="resForm">
       <input type="hidden" id="resId">
       <div class="form-grid">
@@ -599,9 +605,13 @@
             <option>Annulée</option>
           </select>
         </div>
-        <div class="full">
-          <label>Client</label>
-          <input type="text" id="f_client" required placeholder="Nom du client">
+        <div>
+          <label>Prénom</label>
+          <input type="text" id="f_firstName" required placeholder="Prénom">
+        </div>
+        <div>
+          <label>Nom</label>
+          <input type="text" id="f_lastName" required placeholder="Nom">
         </div>
         <div>
           <label>Téléphone</label>
@@ -610,6 +620,14 @@
         <div>
           <label>Email</label>
           <input type="email" id="f_email" placeholder="client@mail.com">
+        </div>
+        <div>
+          <label>Adultes</label>
+          <input type="number" id="f_adults" min="1" step="1" value="1">
+        </div>
+        <div>
+          <label>Enfants</label>
+          <input type="number" id="f_children" min="0" step="1" value="0">
         </div>
         <div>
           <label>Date d'arrivée</label>
@@ -627,6 +645,48 @@
         <div>
           <label>Acompte (€)</label>
           <input type="number" id="f_deposit" min="0" step="1" value="0">
+        </div>
+        <div>
+          <label>Taxe de séjour (€)</label>
+          <input type="number" id="f_touristTax" min="0" step="0.1" value="0">
+        </div>
+        <div>
+          <label>Canal de réservation</label>
+          <select id="f_bookingChannel">
+            <option>Direct</option>
+            <option>Téléphone</option>
+            <option>Airbnb</option>
+            <option>Booking.com</option>
+            <option>Autre</option>
+          </select>
+        </div>
+        <div>
+          <label>Mode de paiement</label>
+          <select id="f_paymentMethod">
+            <option value="">Non renseigné</option>
+            <option>Espèces</option>
+            <option>Virement</option>
+            <option>Carte bancaire</option>
+            <option>Chèque</option>
+          </select>
+        </div>
+        <div>
+          <label>Statut du paiement</label>
+          <select id="f_paymentStatus">
+            <option>Non payé</option>
+            <option>Partiel</option>
+            <option>Payé</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;">
+            <input type="checkbox" id="f_checkedIn" style="width:auto;"> Check-in effectué
+          </label>
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;">
+            <input type="checkbox" id="f_checkedOut" style="width:auto;"> Check-out effectué
+          </label>
         </div>
         <div class="full">
           <label>Notes</label>
@@ -828,14 +888,15 @@
 
   // ---------- rendering: dashboard ----------
   function renderDashboard(){
-    var totalActive=0, totalNights=0, totalRevenue=0;
+    var totalActive=0, totalNights=0, totalRevenue=0, totalTax=0;
     var cardsHtml = "";
     APARTMENTS.forEach(function(apt){
       var active = activeReservationsFor(apt).length;
       var nights = nightsIn365(apt);
       var occPct = Math.round((nights/365)*1000)/10;
       var revenue = revenueFor(apt);
-      totalActive += active; totalNights += nights; totalRevenue += revenue;
+      var tax = activeReservationsFor(apt).reduce(function(sum,r){ return sum + (parseFloat(r.touristTax)||0); }, 0);
+      totalActive += active; totalNights += nights; totalRevenue += revenue; totalTax += tax;
       cardsHtml += ""+
         "<div class='card'>"+
           "<h3>"+apt+"</h3>"+
@@ -853,7 +914,8 @@
       "<div><strong>"+totalActive+"</strong>Réservations actives</div>"+
       "<div><strong>"+totalNights+"</strong>Nuits réservées (12 mois, tous appts)</div>"+
       "<div><strong>"+occAll+"%</strong>Taux d'occupation global</div>"+
-      "<div><strong>"+fmtMoney(totalRevenue)+"</strong>Revenu prévisionnel total</div>";
+      "<div><strong>"+fmtMoney(totalRevenue)+"</strong>Revenu prévisionnel total</div>"+
+      "<div><strong>"+fmtMoney(totalTax)+"</strong>Taxe de séjour (réservations actives)</div>";
 
     // upcoming 7 days
     var start = new Date(); start.setHours(0,0,0,0);
@@ -871,7 +933,8 @@
       list.innerHTML = "<li style='justify-content:center;color:#8a97a3;'>Aucune arrivée ou départ dans les 7 prochains jours.</li>";
     } else {
       list.innerHTML = events.map(function(e){
-        return "<li><span>"+fmtDate(e.date)+" — "+e.type+" — "+e.r.apartment+" — "+escapeHtml(e.r.client)+"</span>"+
+        var pax = " ("+(e.r.adults||1)+(e.r.children?"+"+e.r.children:"")+" pers.)";
+        return "<li><span>"+fmtDate(e.date)+" — "+e.type+" — "+e.r.apartment+" — "+escapeHtml(e.r.client)+pax+"</span>"+
           "<span class='tag' data-status='"+e.r.status+"'>"+e.r.status+"</span></li>";
       }).join("");
     }
@@ -914,21 +977,29 @@
 
     tbody.innerHTML = rows.map(function(r){
       var nights = nightsBetween(r.checkin, r.checkout);
-      var total = nights * (parseFloat(r.price)||0);
+      var total = nights * (parseFloat(r.price)||0) + (parseFloat(r.touristTax)||0);
       var balance = total - (parseFloat(r.deposit)||0);
       var dotHtml = "";
       if(isBlocking(r)){
         var c = colorForReservation(r.id);
         dotHtml = "<span style='display:inline-block;width:10px;height:10px;border-radius:3px;background:"+c.bg+";margin-right:6px;vertical-align:middle;'></span>";
       }
+      var pax = (r.adults||1) + (r.children ? "+"+r.children : "");
+      var numHtml = r.reservationNumber ? escapeHtml(r.reservationNumber) : "—";
+      var payLabel = r.paymentStatus || "Non payé";
+      var checkFlags = "";
+      if(r.checkedIn) checkFlags += " <span title='Check-in effectué' style='font-size:11px;'>✓in</span>";
+      if(r.checkedOut) checkFlags += " <span title='Check-out effectué' style='font-size:11px;'>✓out</span>";
       return "<tr data-id='"+r.id+"'>"+
-        "<td data-label='Appartement'>"+dotHtml+r.apartment+"</td>"+
-        "<td data-label='Client'>"+escapeHtml(r.client)+"</td>"+
+        "<td data-label='N°'>"+numHtml+"</td>"+
+        "<td data-label='Client'>"+dotHtml+escapeHtml(r.client)+checkFlags+"</td>"+
+        "<td data-label='Appartement'>"+r.apartment+"</td>"+
         "<td data-label='Arrivée'>"+fmtDate(r.checkin)+"</td>"+
         "<td data-label='Départ'>"+fmtDate(r.checkout)+"</td>"+
-        "<td data-label='Nuits'>"+nights+"</td>"+
+        "<td data-label='Pers.'>"+pax+"</td>"+
         "<td data-label='Total'>"+fmtMoney(total)+"</td>"+
         "<td data-label='Solde'>"+fmtMoney(balance)+"</td>"+
+        "<td data-label='Paiement'><span class='tag' data-payment='"+payLabel+"'>"+payLabel+"</span></td>"+
         "<td data-label='Statut'><span class='tag' data-status='"+r.status+"'>"+r.status+"</span></td>"+
         "<td data-label=''><button class='btn btn-ghost btn-sm editRes'>Modifier</button></td>"+
         "</tr>";
@@ -936,26 +1007,49 @@
   }
 
   // ---------- modal ----------
+  function splitClientName(r){
+    if(r.firstName || r.lastName) return {first: r.firstName||"", last: r.lastName||""};
+    var parts = (r.client||"").trim().split(/\s+/);
+    return {first: parts.shift()||"", last: parts.join(" ")};
+  }
   function openModal(reservation){
     state.editingId = reservation ? reservation.id : null;
     document.getElementById("modalTitle").textContent = reservation ? "Modifier la réservation" : "Nouvelle réservation";
     document.getElementById("btnDeleteRes").style.display = reservation ? "inline-block" : "none";
+    var numEl = document.getElementById("modalResNumber");
+    if(reservation && reservation.reservationNumber){
+      numEl.textContent = "N° " + reservation.reservationNumber;
+      numEl.style.display = "block";
+    } else {
+      numEl.style.display = "none";
+    }
+    var name = splitClientName(reservation || {});
     document.getElementById("f_apartment").value = reservation ? reservation.apartment : APARTMENTS[0];
     document.getElementById("f_status").value = reservation ? reservation.status : "Confirmée";
-    document.getElementById("f_client").value = reservation ? reservation.client : "";
+    document.getElementById("f_firstName").value = name.first;
+    document.getElementById("f_lastName").value = name.last;
     document.getElementById("f_phone").value = reservation ? reservation.phone : "";
     document.getElementById("f_email").value = reservation ? reservation.email : "";
+    document.getElementById("f_adults").value = reservation ? (reservation.adults||1) : 1;
+    document.getElementById("f_children").value = reservation ? (reservation.children||0) : 0;
     document.getElementById("f_checkin").value = reservation ? reservation.checkin : todayStr();
     var defCheckout = reservation ? reservation.checkout : toISO(new Date(Date.now()+MS_DAY));
     document.getElementById("f_checkout").value = defCheckout;
     document.getElementById("f_price").value = reservation ? reservation.price : 0;
     document.getElementById("f_deposit").value = reservation ? reservation.deposit : 0;
+    document.getElementById("f_touristTax").value = reservation ? (reservation.touristTax||0) : 0;
+    document.getElementById("f_bookingChannel").value = reservation ? (reservation.bookingChannel||"Direct") : "Direct";
+    document.getElementById("f_paymentMethod").value = reservation ? (reservation.paymentMethod||"") : "";
+    document.getElementById("f_paymentStatus").value = reservation ? (reservation.paymentStatus||"Non payé") : "Non payé";
+    document.getElementById("f_checkedIn").checked = !!(reservation && reservation.checkedIn);
+    document.getElementById("f_checkedOut").checked = !!(reservation && reservation.checkedOut);
     document.getElementById("f_notes").value = reservation ? reservation.notes : "";
     document.getElementById("modalOverlay").classList.add("show");
   }
   function closeModal(){
     document.getElementById("modalOverlay").classList.remove("show");
     document.getElementById("resForm").reset();
+    document.getElementById("modalResNumber").style.display = "none";
     state.editingId = null;
   }
   function openModalPrefill(apt, dateStr){
@@ -989,16 +1083,28 @@
         return;
       }
     }
+    var firstName = document.getElementById("f_firstName").value.trim();
+    var lastName = document.getElementById("f_lastName").value.trim();
     var data = {
       apartment: apartment,
       status: status,
-      client: document.getElementById("f_client").value.trim() || "Client sans nom",
+      firstName: firstName,
+      lastName: lastName,
+      client: (firstName + " " + lastName).trim() || "Client sans nom",
       phone: document.getElementById("f_phone").value.trim(),
       email: document.getElementById("f_email").value.trim(),
+      adults: parseInt(document.getElementById("f_adults").value,10) || 1,
+      children: parseInt(document.getElementById("f_children").value,10) || 0,
       checkin: checkin,
       checkout: checkout,
       price: parseFloat(document.getElementById("f_price").value)||0,
       deposit: parseFloat(document.getElementById("f_deposit").value)||0,
+      touristTax: parseFloat(document.getElementById("f_touristTax").value)||0,
+      bookingChannel: document.getElementById("f_bookingChannel").value,
+      paymentMethod: document.getElementById("f_paymentMethod").value,
+      paymentStatus: document.getElementById("f_paymentStatus").value,
+      checkedIn: document.getElementById("f_checkedIn").checked,
+      checkedOut: document.getElementById("f_checkedOut").checked,
       notes: document.getElementById("f_notes").value.trim()
     };
 
@@ -1107,9 +1213,10 @@
     var res = reservationOn(apt, dateS);
     if(res){
       var rc = colorForReservation(res.id);
+      var pax = (res.adults||1) + (res.children ? "+"+res.children : "");
       panel.innerHTML = "<h4><span style='display:inline-block;width:12px;height:12px;border-radius:3px;background:"+rc.bg+";margin-right:6px;vertical-align:middle;'></span>"+apt+" — "+fmtDate(dateS)+" — Occupé</h4>"+
-        "<div>Client : <strong>"+escapeHtml(res.client)+"</strong> &nbsp;|&nbsp; Statut : <span class='tag' data-status='"+res.status+"'>"+res.status+"</span></div>"+
-        "<div>Séjour : "+fmtDate(res.checkin)+" &rarr; "+fmtDate(res.checkout)+"</div>"+
+        "<div>Client : <strong>"+escapeHtml(res.client)+"</strong> ("+pax+" pers.) &nbsp;|&nbsp; Statut : <span class='tag' data-status='"+res.status+"'>"+res.status+"</span> &nbsp;|&nbsp; Paiement : <span class='tag' data-payment='"+(res.paymentStatus||"Non payé")+"'>"+(res.paymentStatus||"Non payé")+"</span></div>"+
+        "<div>Séjour : "+fmtDate(res.checkin)+" &rarr; "+fmtDate(res.checkout)+(res.reservationNumber?" &nbsp;|&nbsp; N° "+escapeHtml(res.reservationNumber):"")+"</div>"+
         "<div style='margin-top:10px;'><button class='btn btn-primary btn-sm' id='editFromCal'>Modifier cette réservation</button></div>";
       panel.classList.add("show");
       document.getElementById("editFromCal").onclick = function(){ openModal(res); };
